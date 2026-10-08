@@ -12,17 +12,91 @@ CodeFlow is a deadline and importance based task prioritization and focus tracki
 - Persistent timer sessions, with one active timer per user.
 - Admin area with a user activity table, category add/edit/delete, prioritization rule controls, tracked-hour and task trend charts, workload distributions, and JVM uptime/memory indicators.
 
-## Run with Docker
+## Run with Docker (recommended)
 
-1. Copy `.env.example` to `.env` and replace the local passwords and JWT secret.
-2. Run `docker compose up --build` from the repository root.
-3. Open the UI at http://localhost:5173 and the API at http://localhost:8080.
+### Requirements
 
-The Compose setup enables development seed data. Sign in as `demo@codeflow.local` / `Demo1234!` for sample tasks and time logs, or `admin@codeflow.local` / `AdminDemo123!` for the admin dashboard. These are local development credentials only. For a non-demo deployment, set `APP_SEED_ENABLED=false`.
+- Docker Desktop (Windows/macOS) or Docker Engine with the Docker Compose v2 plugin (Linux).
+- Git, to clone this repository.
 
-## Run locally
+### Start the application
 
-Create a PostgreSQL database named `codeflow` and set the variables in `.env.example` in your environment. Start the backend with `cd backend; mvn spring-boot:run`, then start the UI with `cd frontend; npm install; npm run dev`.
+Run these commands from the repository root. Docker Compose reads the `.env` file automatically.
+
+**PowerShell (Windows):**
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+docker compose up --build -d
+docker compose ps
+```
+
+**macOS/Linux:**
+
+```bash
+cp .env.example .env
+# Edit .env and replace the example database password and JWT secret.
+docker compose up --build -d
+docker compose ps
+```
+
+Wait for the `db`, `backend`, and `frontend` services to start, then open:
+
+- Web app: http://localhost:5173
+- Backend API: http://localhost:8080/api
+
+To follow service logs, run `docker compose logs -f backend frontend`. Press `Ctrl+C` to stop following logs. Stop the stack with `docker compose down`; this keeps the PostgreSQL data volume so your data is still there next time.
+
+The development Compose configuration enables seed data. Sign in with `demo@codeflow.local` / `Demo1234!` to see sample tasks and time logs, or `admin@codeflow.local` / `AdminDemo123!` to open the admin dashboard. These accounts are for local development only. The current Compose file sets `APP_SEED_ENABLED=true`; before adapting the Compose setup for a non-demo deployment, change that value to `false` and replace all development secrets and passwords.
+
+## Run manually without Docker
+
+### Requirements
+
+- Java 21 and Maven.
+- Node.js and npm.
+- PostgreSQL 16 running locally.
+
+### 1. Create the database
+
+In PostgreSQL, create a database and local user. For example, run the following as a PostgreSQL administrator in `psql`:
+
+```sql
+CREATE USER codeflow WITH PASSWORD 'replace-with-a-local-password';
+CREATE DATABASE codeflow OWNER codeflow;
+```
+
+### 2. Start the backend
+
+Open a terminal at the repository root and set the connection values for that terminal. The commands below use PowerShell; replace the database password and JWT secret with your local values.
+
+```powershell
+$env:DATABASE_URL = "jdbc:postgresql://localhost:5432/codeflow"
+$env:DATABASE_USERNAME = "codeflow"
+$env:DATABASE_PASSWORD = "replace-with-a-local-password"
+$env:JWT_SECRET = "replace-with-a-random-secret-at-least-32-characters"
+$env:CORS_ORIGIN = "http://localhost:5173"
+$env:APP_SEED_ENABLED = "true"
+Set-Location backend
+mvn spring-boot:run
+```
+
+Keep this terminal running. Hibernate creates or updates the local tables when the backend starts. Setting `APP_SEED_ENABLED` to `true` creates the development demo accounts and sample data.
+
+### 3. Start the frontend
+
+Open a second terminal at the repository root:
+
+```powershell
+Set-Location frontend
+npm ci
+npm run dev
+```
+
+Open http://localhost:5173. The frontend uses http://localhost:8080/api for the backend by default. Press `Ctrl+C` in each terminal to stop the frontend and backend.
+
+For non-PowerShell shells, export the same environment variables before running `mvn spring-boot:run`, for example `export DATABASE_URL=jdbc:postgresql://localhost:5432/codeflow` and `export APP_SEED_ENABLED=true`.
 
 ## Stack and structure
 
