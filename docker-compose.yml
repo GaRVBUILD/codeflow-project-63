@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: codeflow
+      POSTGRES_USER: codeflow
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-codeflow}
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U codeflow -d codeflow"], interval: 5s, timeout: 5s, retries: 10}
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/codeflow
+      DATABASE_USERNAME: codeflow
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-codeflow}
+      JWT_SECRET: ${JWT_SECRET:-replace-this-development-secret-with-at-least-32-chars}
+      CORS_ORIGIN: http://localhost:5173
+      APP_SEED_ENABLED: "true"
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@codeflow.local}
+      FRONTEND_URL: http://localhost:5173
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTH: ${SMTP_AUTH:-true}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+    ports: ["8080:8080"]
+    depends_on: {db: {condition: service_healthy}}
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment: ["VITE_API_URL=http://localhost:8080/api"]
+    ports: ["5173:80"]
+    depends_on: [backend]
+volumes: {pgdata:}
